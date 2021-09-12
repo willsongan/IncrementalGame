@@ -25,17 +25,32 @@ public class GameManager : MonoBehaviour
     public Transform ResourcesParent;
     public ResourceController ResourcePrefab;
     public TapText TapTextPrefab;
-    public Transform CoinIcon;
+    public SkillController SkillController;
+    public GameObject CoinIcon;
+    public Sprite DiamondIcon;
     public Text GoldInfo;
     public Text AutoCollectInfo;
     private List<ResourceController> _activeResources = new List<ResourceController>();
     private List<TapText> _tapTextPool = new List<TapText>();
     private float _collectSecond;
     public double TotalGold { get; private set; }
+    private Sprite DefaultCoinIcon;
+
 
     private void Start()
     {
         AddAllResources();
+        DefaultCoinIcon = CoinIcon.GetComponent<SpriteRenderer>().sprite;
+    }
+
+    private void ChangeToDiamond()
+    {
+        CoinIcon.GetComponent<SpriteRenderer>().sprite = DiamondIcon;
+    }
+
+    private void ChangeToGold()
+    {
+        CoinIcon.GetComponent<SpriteRenderer>().sprite = DefaultCoinIcon;
     }
 
     private void Update()
@@ -50,6 +65,29 @@ public class GameManager : MonoBehaviour
         CheckResourceCost();
         CoinIcon.transform.localScale = Vector3.LerpUnclamped(CoinIcon.transform.localScale, Vector3.one * 2f, 0.15f);
         CoinIcon.transform.Rotate(0f, 0f, Time.deltaTime * -100f);
+        CheckSkillActivation();
+    }
+
+    private void CheckSkillActivation()
+    {
+        if (SkillController.IsActivated)
+        {
+            if (CoinIcon.GetComponent<SpriteRenderer>().sprite = DefaultCoinIcon)
+            {
+                ChangeToDiamond();
+            }
+
+            if (SkillController.SkillTimer > 0f)
+            {
+                SkillController.SkillTimer -= Time.deltaTime;
+            }
+            else
+            {
+                SkillController.SkillTimer = SkillController.DefaultSkillTimer;
+                SkillController.IsActivated = false;
+                ChangeToGold();
+            }
+        }
     }
 
     private void AddAllResources()
@@ -102,12 +140,18 @@ public class GameManager : MonoBehaviour
         GoldInfo.text = $"Gold: { TotalGold.ToString("0") }";
     }
 
+
+
     public void CollectByTap(Vector3 tapPosition, Transform parent)
     {
         double output = 0;
         foreach (ResourceController resource in _activeResources)
         {
-            if (resource.IsUnlocked)
+            if (resource.IsUnlocked && SkillController.IsActivated)
+            {
+                output += resource.GetOutput() * SkillController.GoldMultiplier;
+            }
+            else if (resource.IsUnlocked)
             {
                 output += resource.GetOutput();
             }
